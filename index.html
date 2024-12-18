@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HECM for Purchase Calculator</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+      background-color: #f8f9fa;
+      color: #212529;
+    }
+    .calculator {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      background: #ffffff;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+    h2 {
+      text-align: center;
+      color: #007bff;
+    }
+    .form-group {
+      margin-bottom: 20px;
+    }
+    .form-group label {
+      font-weight: bold;
+      display: block;
+    }
+    .form-group input, .form-group select {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      box-sizing: border-box;
+    }
+    .calculate-btn {
+      display: block;
+      width: 100%;
+      background-color: #007bff;
+      color: white;
+      padding: 10px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 16px;
+      text-transform: uppercase;
+    }
+    .calculate-btn:hover {
+      background-color: #0056b3;
+    }
+    .results {
+      margin-top: 30px;
+      text-align: center;
+    }
+    .result-box {
+      display: inline-block;
+      padding: 20px;
+      border: 2px solid #007bff;
+      border-radius: 8px;
+      margin: 10px;
+      width: 45%;
+      box-sizing: border-box;
+    }
+    .result-box h3 {
+      margin: 0;
+      font-size: 20px;
+      color: #007bff;
+    }
+    .result-box p {
+      margin: 5px 0;
+      font-size: 24px;
+      font-weight: bold;
+      color: #212529;
+    }
+    .chart-container {
+      margin-top: 30px;
+    }
+  </style>
+</head>
+<body>
+  <div class="calculator">
+    <h2>HECM for Purchase Calculator</h2>
+
+    <div class="form-group">
+      <label for="age">Age of Youngest Borrower:</label>
+      <input type="number" id="age" placeholder="Enter age" required>
+    </div>
+
+    <div class="form-group">
+      <label for="interestRate">Expected Interest Rate (%):</label>
+      <select id="interestRate">
+        <script>
+          for (let rate = 4.000; rate <= 10.000; rate += 0.125) {
+            document.write(`<option value="${rate.toFixed(3)}">${rate.toFixed(3)}%</option>`);
+          }
+        </script>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label for="homeValue">Home Purchase Price ($):</label>
+      <input type="number" id="homeValue" placeholder="Enter home value" required>
+    </div>
+
+    <button class="calculate-btn" onclick="calculateHECM()">Calculate</button>
+
+    <div class="results" id="results" style="display:none;">
+      <div class="result-box">
+        <h3>Down Payment</h3>
+        <p>$<span id="borrowerContribution">0.00</span></p>
+      </div>
+      <div class="result-box">
+        <h3>Retirement Mortgage</h3>
+        <p>$<span id="lenderContribution">0.00</span></p>
+      </div>
+
+      <div class="chart-container">
+        <canvas id="resultChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    async function fetchPLFTable() {
+      const response = await fetch('PLF_6_to_10_Complete.json');
+      return await response.json();
+    }
+
+    function roundToNearestEighthDown(value) {
+      return Math.floor(value * 8) / 8; // Always rounds down to the nearest 1/8th percent
+    }
+
+    async function calculateHECM() {
+      const age = parseInt(document.getElementById('age').value);
+      const interestRate = parseFloat(document.getElementById('interestRate').value);
+      const homeValue = parseFloat(document.getElementById('homeValue').value);
+
+      if (!age || !interestRate || !homeValue) {
+        alert('Please fill in all fields.');
+        return;
+      }
+
+      const plfTable = await fetchPLFTable();
+      const matchingRow = plfTable.find(row => row.Age === age);
+      if (!matchingRow) {
+        alert('No data available for the entered age.');
+        return;
+      }
+
+      const rateKey = interestRate.toFixed(3);
+      const plf = matchingRow[rateKey];
+      if (!plf) {
+        alert('No PLF available for the selected interest rate.');
+        return;
+      }
+
+      const loanAmount = homeValue * plf;
+      const borrowerContribution = homeValue - loanAmount;
+      const lenderContribution = loanAmount;
+
+      document.getElementById('borrowerContribution').innerText = borrowerContribution.toFixed(2);
+      document.getElementById('lenderContribution').innerText = lenderContribution.toFixed(2);
+      document.getElementById('results').style.display = 'block';
+
+      renderChart(borrowerContribution, lenderContribution);
+    }
+
+    function renderChart(borrowerContribution, lenderContribution) {
+      const ctx = document.getElementById('resultChart').getContext('2d');
+      if (window.myChart) {
+        window.myChart.destroy();
+      }
+      window.myChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          labels: ['Down Payment', 'Retirement Mortgage'],
+          datasets: [{
+            data: [borrowerContribution, lenderContribution],
+            backgroundColor: ['#17a2b8', '#28a745']
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: {
+              position: 'bottom'
+            }
+          }
+        }
+      });
+    }
+  </script>
+</body>
+</html>
