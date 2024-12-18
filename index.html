@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HECM for Purchase Calculator</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+    }
+    .calculator {
+      max-width: 400px;
+      margin: 0 auto;
+      padding: 20px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      background: #f9f9f9;
+    }
+    .calculator label {
+      font-weight: bold;
+    }
+    .calculator input, .calculator select {
+      width: 100%;
+      padding: 8px;
+      margin: 10px 0 20px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+    .calculator button {
+      background-color: #007bff;
+      color: white;
+      padding: 10px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .calculator button:hover {
+      background-color: #0056b3;
+    }
+    .results {
+      margin-top: 20px;
+      padding: 10px;
+      background: #e9ecef;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body>
+  <div class="calculator">
+    <h2>HECM for Purchase Calculator</h2>
+    <label for="age">Age of Youngest Borrower:</label>
+    <input type="number" id="age" placeholder="Enter age" required>
+
+    <label for="interestRate">Expected Interest Rate (%):</label>
+    <select id="interestRate">
+      <script>
+        for (let rate = 4.000; rate <= 18.000; rate += 0.125) {
+          document.write(`<option value="${rate.toFixed(3)}">${rate.toFixed(3)}%</option>`);
+        }
+      </script>
+    </select>
+
+    <label for="homeValue">Home Purchase Price ($):</label>
+    <input type="number" id="homeValue" placeholder="Enter home value" required>
+
+    <button onclick="calculateHECM()">Calculate</button>
+
+    <div class="results" id="results" style="display:none;">
+      <h3>Results:</h3>
+      <p><strong>Principal Limit Factor (PLF):</strong> <span id="plf"></span></p>
+      <p><strong>Estimated Loan Amount:</strong> $<span id="loanAmount"></span></p>
+    </div>
+  </div>
+
+  <script>
+    async function fetchPLFTable() {
+      const response = await fetch('HECM_PLF_Table_All_Rates.json'); // Ensure the JSON file is in the same directory
+      return await response.json();
+    }
+
+    async function calculateHECM() {
+      const age = parseInt(document.getElementById('age').value);
+      const interestRate = parseFloat(document.getElementById('interestRate').value);
+      const homeValue = parseFloat(document.getElementById('homeValue').value);
+
+      if (!age || !interestRate || !homeValue) {
+        alert('Please fill in all fields.');
+        return;
+      }
+
+      const plfTable = await fetchPLFTable();
+
+      // Find the PLF for the given age and interest rate
+      const matchingRow = plfTable.find(row => row.Age === age);
+
+      if (!matchingRow) {
+        alert('No data found for the entered age.');
+        return;
+      }
+
+      const interestRateColumn = `${interestRate.toFixed(3)}%`;
+      const plf = matchingRow[interestRateColumn];
+
+      if (!plf) {
+        alert('No PLF available for the selected interest rate.');
+        return;
+      }
+
+      // Calculate loan amount
+      const loanAmount = homeValue * plf;
+
+      // Display results
+      document.getElementById('plf').innerText = plf.toFixed(3);
+      document.getElementById('loanAmount').innerText = loanAmount.toFixed(2);
+      document.getElementById('results').style.display = 'block';
+    }
+  </script>
+</body>
+</html>
